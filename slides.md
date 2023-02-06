@@ -39,7 +39,7 @@ fonts:
 Working with @b2b/service cache system
 
 <!--
-Pulsa espacio para continuar
+Thank you for coming. I'm going to talk about how we are adding a Redis cache in our API projects that uses @b2b/service
 -->
 
 ---
@@ -53,6 +53,13 @@ Pulsa espacio para continuar
   - [Redis server (https://redis.io/)](https://redis.io/)
 
 Warning: if you deploy more than one instance of your app, you will have alignment problems in the cache content if you use memory cache.
+
+<!--
+Before having a Redis server, some of our APIs were using memory cache.
+Problems of this: if you have more than 1 instance of your app deployed, each instance has its own memory cache, they are not synched so the result could vary depending on which instance is resturning the information
+
+By using the module @b2b/store we can switch easily between memory and redis.
+-->
 
 ---
 
@@ -72,6 +79,12 @@ If type === 'auto'
   - found it :) => it will create a Redis store
   - not found :( => it will create a memory store
 
+<!--
+- @b2b/store is integrated into @b2b/service so enable the cache (memory or redis) is quite easy
+- instead of configure the projects to use memory cache, we configured them in auto mode thinking in the future
+- the auto mode will check your config object, looking for the field redis.host to setup a Redis cache or a memory cache
+-->
+
 ---
 
 # ENV variables
@@ -81,6 +94,11 @@ If type === 'auto'
 - REDIS_PASSWORD (optional)
 - REDIS_DB (default 0)
 - CACHE_TTL (in milliseconds)
+
+<!--
+- in BOX we defined the following environment variables that are common for all of our projects
+- you could use another names in non BOX projects. Just be sure you are using it in your config file
+-->
 
 ---
 
@@ -156,10 +174,6 @@ const controller = async (req, res, next) => {
 
 ```
 
-<!--
-The cache object is using the values of the header Cache-Control so you don't need to add logic to check if the request wanted or not to use cached data
--->
-
 ---
 
 # Considerations
@@ -175,6 +189,11 @@ const data = await cache.get(key); //it is accessing to myappname.cache_key_to_r
 - Last sentence is not entirely true: you can delete the whole Redis cache by using `cache.prune()`
 
 (\*) when you define a key to store your object in cache, @b2b/service adds a prefix to it. This prefix is the name located at the `package.json`
+
+<!--
+- cache object is injected in the request object by a middleware
+- this middleware adds a prefix to your keys so you could access only to the app keys
+-->
 
 ---
 
@@ -204,13 +223,18 @@ curl -X 'GET' \
   -H 'cache-control: no-cache,no-store'
 ```
 
+<!--
+- cache object is injected in the request object by a middleware
+- you don't need to add extra code in your app to check the cache control headers (the middleware overrides the cache functions)
+-->
+
 ---
 
 # Controlling the cache on the request (ii)
 
 Header 'x-cache-request'
 
-this is a custom header that will retrive from cache the entire response of your endpoint when is set to true
+this is a custom header that will retrive from cache the entire response of your **GET ENDPOINT** when is set to true
 
 ### example:
 
@@ -273,6 +297,53 @@ Remember:
 
 ---
 
-# Have a nice day
+# The middleware
 
-![](https://images.freeimages.com/fic/images/icons/1202/futurama_vol_6_the_movies/256/steamboat_bender.png?ref=findicons)
+@b2b/service includes an express middleware that manages all these stuff: [/src/express/cache.js](https://github.com/ingka-group-digital/b2b-shared-nodejs/blob/main/packages/b2b-service/src/express/cache.js)
+
+- Creates the redis or lru store (aka cache) depending on the config
+- Generates the key prefix for all the keys of your app
+- Take care about cache-control and x-cache-request headers
+- Take care that you are not accessing keys outsite your app
+- Injects the cache into the request object to get it available at controllers
+
+---
+
+# Gimme the prize
+
+<div grid="~ cols-2 gap--4">
+<div>
+Start using it by adding the following line into the .npmrc file of your project:
+
+```bash
+@b2b:registry=https://europe-npm.pkg.dev/ingka-b2b-components-prod/b2b/
+```
+
+And install @b2b/service:
+
+```bash
+npm i @b2b/service@latest
+```
+
+If you are working on an existing express project without @b2b/service, you could use @b2b/store and [replicate the logic of the cache middleware](https://github.com/ingka-group-digital/b2b-shared-nodejs/blob/main/packages/b2b-service/src/express/cache.js)
+
+```bash
+npm i @b2b/store@latest
+```
+
+Note: if you are using @b2b/service you don't need to install @b2b/store
+
+</div>
+<div>
+
+<iframe width="300" height="200" src="https://www.youtube.com/embed/GT1k3-fErCM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+</div>
+</div>
+
+---
+
+# I LOVE REDIS - IN REDIS WE TRUST
+
+![](https://www.anfibiosexoticos.com/wp-content/uploads/2020/05/hipnosapo-min.jpg)
+
+Use @b2b modules ;-)
